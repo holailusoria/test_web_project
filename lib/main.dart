@@ -1,3 +1,4 @@
+import 'dart:js_interop';
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
@@ -34,6 +35,27 @@ class _HomePageState extends State<HomePage> {
 
   // OverlayEntry object for displaying the context menu
   OverlayEntry? overlayEntry;
+  late final JSFunction? _onContextMenu;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // disable default behaviour for right click on this page
+    _onContextMenu = (web.Event event) {
+      event.preventDefault();
+    }.toJS;
+    web.document.addEventListener('contextmenu', _onContextMenu);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+
+    if(_onContextMenu != null) {
+      web.document.removeEventListener('contextmenu', _onContextMenu);
+    }
+  }
 
   /// Toggle fullscreen mode.
   void toggleFullscreen() {
@@ -104,6 +126,59 @@ class _HomePageState extends State<HomePage> {
     overlayEntry = null;
   }
 
+  //context menu when tap on image
+  void showImageMenu(BuildContext context, Offset position) {
+    overlayEntry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: removeImageMenu,
+              child: Container(color: Colors.black54),
+            ),
+          ),
+          Positioned(
+            top: position.dy,
+            left: position.dx - 100,
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  FloatingActionButton.extended(
+                    onPressed: () {
+                      if (imageUrl != null) {
+                        print('Save Image');
+                      }
+                    },
+                    label: const Text("Save Image"),
+                  ),
+                  const SizedBox(height: 8),
+                  FloatingActionButton.extended(
+                    onPressed: () {
+                      if (imageUrl != null) {
+                        print('Open Image');
+                      }
+                    },
+                    label: const Text("Open Image"),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    // Insert the OverlayEntry into the widget tree
+    Overlay.of(context).insert(overlayEntry!);
+  }
+
+  // removes image context menu
+  void removeImageMenu() {
+    overlayEntry?.remove();
+    overlayEntry = null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,6 +194,8 @@ class _HomePageState extends State<HomePage> {
                 child: GestureDetector(
                   onDoubleTap:
                       toggleFullscreen, // Enter fullscreen mode on double tap
+                  onSecondaryTapDown: (details) =>
+                      showImageMenu(context, details.localPosition), // Open custom context menu
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.grey,
